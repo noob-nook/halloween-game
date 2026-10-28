@@ -13,6 +13,7 @@ button,input{cursor:var(--cursor-ghost);font:inherit}
 @keyframes fog{to{transform:translateX(6%) scale(1.15)}}
 .ember{position:fixed;bottom:-10px;width:5px;height:5px;border-radius:50%;background:var(--pumpkin);box-shadow:0 0 8px var(--pumpkin);animation:up 7s linear infinite;pointer-events:none}
 @keyframes up{to{transform:translateY(-105vh);opacity:0}}
+#app{transition:opacity .2s}
 #app,#adm,#lb{position:relative;max-width:760px;margin:0 auto;padding:16px}
 h1,h2,h3{font-family:Fraunces,'Noto Sans TC',serif;color:var(--pumpkin);margin:.3em 0}
 h1{font-size:clamp(1.5rem,6vw,2.4rem);text-align:center}
@@ -53,11 +54,11 @@ body.shield .shieldmsg{display:flex}
 body.shield .hintbtn{pointer-events:none;opacity:.35}
 .decl{position:fixed;inset:0;z-index:1000;display:flex;align-items:center;justify-content:center;padding:16px;background:#000c}
 .decl>div{width:100%;max-width:420px;background:var(--grave-slate);border:2px solid var(--pumpkin);border-radius:16px;padding:22px 18px;text-align:center;box-shadow:0 0 30px #ff7a1a40}
+.kn{animation:kn .3s}@keyframes kn{25%{transform:translateX(-8px) rotate(-4deg)}75%{transform:translateX(8px) rotate(4deg)}}
 .decl h3{margin:0 0 6px}.decl .q{font-size:1.35rem;font-weight:700;color:var(--bone);margin:14px 0 6px;line-height:1.5}.decl small{color:#aaa}
 .decl>div.notice{max-width:460px;max-height:88vh;overflow-y:auto;text-align:left;-webkit-overflow-scrolling:touch}
 .notice h3{text-align:center;margin-bottom:10px}.notice p{margin:0 0 12px;font-size:.95rem;line-height:1.7}.notice p b{color:var(--spectral)}
 .notice .acts{text-align:center;position:sticky;bottom:-22px;background:var(--grave-slate);padding:10px 0 4px}
-/* ---- 通關開門動畫 ---- */
 .gs-scene{position:relative;height:340px;overflow:hidden;border-radius:12px;background:radial-gradient(70% 60% at 50% 100%,#2a3347,transparent),linear-gradient(#070a10,#1c222d)}
 .gs-scene i{position:absolute;width:3px;height:3px;border-radius:50%;background:#fff;opacity:.7;animation:blink 3s infinite}
 .gs-moon{position:absolute;right:22px;top:14px;font-size:34px;opacity:.9}
@@ -98,26 +99,22 @@ body.shield .hintbtn{pointer-events:none;opacity:.35}
 <script>
 const CONFIG={
  ORG_NAME:"管理部",
- LB_SHOW_STATS:true, // 排行榜是否在姓名下方顯示每關次數／步數與秒數、提示次數；不想公開就改成 false（試算表仍會完整記錄）。「提示次數」固定要等玩家通關第三關才看得到（由後端控制）
- SCORE_URL:"https://script.google.com/macros/s/AKfycbxjscktWJ-pBHSPxQxTxfuG0LMiyd1RG7kh50u3pwUMACZLlAF_PEu-GIc4P_mhmsmn7A/exec", // 雲端排行榜：貼上 Google Apps Script 部署後的「網頁應用程式網址」（https://script.google.com/macros/s/.../exec）；登入與第一關都要靠它驗證，一定要填
+ LB_SHOW_STATS:true,
+ SCORE_URL:"https://script.google.com/macros/s/AKfycbxjscktWJ-pBHSPxQxTxfuG0LMiyd1RG7kh50u3pwUMACZLlAF_PEu-GIc4P_mhmsmn7A/exec",
  TIME_BUDGET_MIN:30,
- PASS_WORDS:["or","Treat","Trick"], // 通關密語要顯示的詞（順序打亂，正確順序、管理員帳號與密碼、活動時間、鬼魂數量都存在後端 Apps Script 的「指令碼屬性」）
- SHUFFLE_STEPS:30, // 第三關打亂步數：越小越簡單（原本 90）
- HINT_MAX_USES:5,RESHUFFLE_MAX:5, // 第三關可重新洗牌的次數（時間照跑、步數累計）
- HINT_PENALTY_SEC:20,HINT_AUTO_STEPS:4, // 每次提示自動走幾步
- HINT_MIN_MOVES:5}; // 每次使用提示前，必須自己先走幾步（不含來回走同一格）
-// ---- storage ----
+ PASS_WORDS:["or","Treat","Trick"],
+ SHUFFLE_STEPS:30,
+ HINT_MAX_USES:5,HINT_PENALTY_SEC:20,HINT_AUTO_STEPS:4,HINT_MIN_MOVES:5,
+ RESHUFFLE_MAX:5};
 const ld=(k,d)=>{try{return JSON.parse(localStorage.getItem(k))||d}catch(e){return d}};
 const sv=(k,v)=>{try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}};
 let USERS=ld("hw_users",{}),ME=null,P=null,ADMIN=false,view="login",tick=null;
 const $=id=>document.getElementById(id);
 const svU=()=>sv("hw_users",USERS),save=()=>{USERS[ME]=P;svU()};
-const jpost=b=>fetch(CONFIG.SCORE_URL,{method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify(b)}).then(r=>r.json());
+const jpost=b=>fetch(CONFIG.SCORE_URL,{method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify(b),signal:AbortSignal.timeout(25000)}).then(r=>r.json());
 const p2=n=>String(n).padStart(2,"0"),fmt=d=>{d=new Date(d);return`${d.getFullYear()}/${p2(d.getMonth()+1)}/${p2(d.getDate())} ${p2(d.getHours())}:${p2(d.getMinutes())}:${p2(d.getSeconds())}`},mmss=s=>`${p2(Math.floor(s/60))} 分 ${p2(Math.floor(s%60))} 秒`;
 const shuf=a=>{a=a.slice();for(let i=a.length-1;i>0;i--){const j=Math.random()*(i+1)|0;[a[i],a[j]]=[a[j],a[i]]}return a};
 for(let i=0;i<14;i++){const e=document.createElement("i");e.className="ember";e.style.left=Math.random()*100+"%";e.style.animationDelay=Math.random()*7+"s";e.style.animationDuration=5+Math.random()*5+"s";$("embers").appendChild(e)}
-// ---- puzzle data ----
-// 第一關只放算式文字；鬼魂數量與答案比對都在後端 Apps Script（順序要與 Code.gs 的 FORMS_ 一致）
 const FORMS=["白 × 黑 − 灰","（白 + 黑 + 灰）× 2","黑的平方 − （白 × 灰）","（白 + 黑）× 灰 − 白"];
 function scr(){let ord=[...Array(16).keys()],pos=15,trail=[15],prev=-1;
  for(let i=0;i<CONFIG.SHUFFLE_STEPS;i++){const r=pos>>2,c=pos&3,n=[];if(r>0)n.push(pos-4);if(r<3)n.push(pos+4);if(c>0)n.push(pos-1);if(c<3)n.push(pos+1);
@@ -127,24 +124,20 @@ function scr(){let ord=[...Array(16).keys()],pos=15,trail=[15],prev=-1;
 function newProgress(name){const fi=Math.random()*FORMS.length|0,{ord,trail}=scr();
  return{name,lvl:0,el:0,start:null,end:null,fi,wrong:0,
   pegs:[[4,3,2,1],[],[]],hm:0,hundo:[],ord,trail,hints:0,rs:0,msg:""}}
-// ---- timer (foreground only) ----
 let last=Date.now(),paused=false,HB=false,hintTimer=null;
 function resetRun(){paused=false;HB=false;clearInterval(hintTimer);hintTimer=null;sel=-1}
 function startTick(){clearInterval(tick);last=Date.now();let sk=-1;tick=setInterval(()=>{const n=Date.now();let d=(n-last)/1000;last=n;
  if(!P||view!=="puzzle"||document.hidden||paused)return;if(d>2)d=.25;P.el+=d;const s=Math.floor(P.el);if(s!==sk){sk=s;if(s%5==0)save()}paintTimer()},250)}
-// 返回頁面時重新對時、重啟計時器並解除卡住的狀態（瀏覽器可能在背景暫停或回收了計時器）
 function resync(){last=Date.now();if(!P||document.hidden)return;if(view==="puzzle"){startTick();if(HB&&!hintTimer){HB=false;render()}else paintTimer()}}
 document.addEventListener("visibilitychange",()=>{if(document.hidden){if(P)save()}else resync()});
 window.addEventListener("pageshow",resync);window.addEventListener("focus",resync);window.addEventListener("pagehide",()=>{if(P)save()});
 function paintTimer(){const t=$("tm");if(!t)return;const left=Math.max(0,CONFIG.TIME_BUDGET_MIN*60-P.el);t.textContent=(paused?"⏸ ":"")+`${p2(Math.floor(left/60))}:${p2(Math.floor(left%60))}`;t.className="timer"+(paused?" pause":left<300?" low":"");if(left<=0&&!P.timeout){P.timeout=1;save();render()}}
-// ---- render ----
 const SAVED='<div class="saved">💾 進度已自動儲存，重新整理也不會消失</div>';
 let slots=[],chips=[],sel=-1;
 let shown="";
 function render(){const a=$("app"),changed=view!==shown;shown=view;
  const paint=()=>{a.className=changed?"enter":"";a.innerHTML=({login:rLogin,brief:rBrief,puzzle:rPuzzle,gate:rGate,done:rDone})[view]();a.style.opacity=1;if(view==="puzzle"){paintTimer();applyLock()}rLB();rAdm();afterLoginFill()};
  if(changed){a.style.opacity=0;setTimeout(paint,150)}else paint()}
-$("app").style.transition="opacity .2s";
 function rLogin(){const e=EVT;if(!chips.length){chips=shuf(CONFIG.PASS_WORDS.map((w,i)=>({w,i})));slots=[]}
  return`<h1>👻 捷而思・現在搞什麼鬼？！</h1><p style="text-align:center;color:var(--spectral)">萬聖節限定篇・主辦：${CONFIG.ORG_NAME}</p>
  <div class="card">${e?`<p class="err">${e}</p>`:""}<label>資安特派員姓名</label><input id="nm" placeholder="請輸入姓名" oninput="nmChg()" maxlength="20">
@@ -154,19 +147,14 @@ function rLogin(){const e=EVT;if(!chips.length){chips=shuf(CONFIG.PASS_WORDS.map
  <button class="btn" id="go" onclick="login()" ${slots.length===CONFIG.PASS_WORDS.length?"":"disabled"}>進入辦公室</button><div id="lerr" class="err"></div></div>`}
 function pick(i){slots.push(i);keepName();render()}function unslot(i){slots.splice(i);keepName();render()}
 let nmv="",apv="";function keepName(){const n=$("nm");if(n)nmv=n.value;const a=$("ap");if(a)apv=a.value}
-// 管理員密碼欄預設隱藏；只有後端回報「這個帳號需要密碼」時才會出現（前端不知道誰是管理員）
 let needPw=false,EVT="";
 function nmChg(){const v=$("nm").value.trim();if(needPw&&v!==nmv){needPw=false;apv="";$("ap").value="";$("pwb").style.display="none"}nmv=v}
 function afterLoginFill(){const n=$("nm");if(n){n.value=nmv;const a=$("ap");if(a)a.value=apv}}
-// 活動開放狀態由後端判斷（用 Google 伺服器的時間，不信任玩家電腦的時鐘）
-function fetchStatus(){if(!CONFIG.SCORE_URL)return;
+function fetchStatus(){
  fetch(CONFIG.SCORE_URL+"?action=status&t="+Date.now()).then(r=>r.json()).then(j=>{const m=j&&j.open===false?(j.msg||""):"";if(m!==EVT){EVT=m;if(view==="login"){keepName();render()}}}).catch(()=>{})}
 fetchStatus();
-
 let authBusy=false;
-// 登入全部交給後端判斷：通關密語順序、姓名格式、是否為管理員（與密碼）、活動是否開放
 async function login(){if(authBusy)return;const n=($("nm").value||"").trim();if(!n){$("lerr").textContent="請輸入姓名";return}
- if(!CONFIG.SCORE_URL){$("lerr").textContent="尚未連線到伺服器（請先設定 SCORE_URL）";return}
  const pw=$("ap")?$("ap").value:"",seq=slots.map(i=>CONFIG.PASS_WORDS[i]);
  authBusy=true;$("go").disabled=true;$("lerr").textContent="驗證中…";
  let j;try{j=await jpost({action:"login",name:n,seq,pw})}
@@ -181,33 +169,36 @@ async function login(){if(authBusy)return;const n=($("nm").value||"").trim();if(
   if(j&&R[j.reason])return fail(R[j.reason]);
   return fail(j&&j.error?"伺服器尚未設定完成，請通知主辦單位":"驗證失敗，請稍後再試")}
  ADMIN=!!j.admin;needPw=false;$("go").disabled=false;
- notice(()=>{apv="";enter(n)})}
-// 點擊「進入辦公室」後先跳出遊戲聲明，按「我知道了」才真正進入
+ notice(()=>{apv="";const u=USERS[n];u&&u.start?enter(n):knock(()=>enter(n))})}
 function notice(go){if($("noticem"))return;const m=document.createElement("div");m.id="noticem";m.className="decl";
  m.innerHTML=`<div class="notice"><h3>📌 遊戲聲明與小小提醒</h3>
  <p><b>※ 遊戲聲明：</b><br>本遊戲純屬娛樂，所有情節均為虛構，請輕鬆遊玩即可！</p>
- <p><b>※ 關於開發者：</b><br>本遊戲並非專業開發，若有不足之處，還請多多包涵。歡迎不吝賜教，但也請手下留情，別刻意破解漏洞或破壞遊戲運作啦XD</p>
- <p><b>※ 關於AI與思考：</b><br>歡迎使用AI協助破關，但還是要保留獨立思考和判斷能力！</p>
+ <p><b>※ 關於開發者：</b><br>本遊戲並非專業開發，若有不足之處，請多多包涵。<br>歡迎交流，但也請手下留情，別刻意破解或破壞遊戲運作🙏</p>
+ <p><b>※ 場外callout：</b><br>歡迎使用AI協助破關，但還是要保留獨立思考和判斷能力！</p>
  <p><b>※ 安全提醒：</b><br>請勿輸入身分證字號、金融資料等敏感資訊，也請勿未經授權修改或破壞遊戲資料。</p>
  <p style="text-align:center">🎃 感謝大家的遊玩與支持，祝大家萬聖節快樂！👻</p>
  <div class="acts"><button class="btn" id="noticeok">我知道了，進入辦公室</button><button class="btn alt" id="noticeno">返回</button></div></div>`;
  document.body.appendChild(m);
  $("noticeok").onclick=()=>{m.remove();go()};$("noticeno").onclick=()=>m.remove()}
+function knock(go){const m=document.createElement("div");m.className="decl";let k=0;
+ m.innerHTML=`<div><h3>辦公室的門緊閉著……</h3><div id="kd" style="font-size:84px;line-height:1.2;user-select:none">🚪</div><div class="q" id="kt">敲門 3 下，看看裡面有誰</div><small id="ks">0 / 3</small><div><button class="btn alt" id="kx">返回</button></div></div>`;
+ document.body.appendChild(m);const d=$("kd");d.style.cursor="pointer";
+ d.onclick=()=>{if(k>=3)return;k++;d.classList.remove("kn");void d.offsetWidth;d.classList.add("kn");$("ks").textContent=k+" / 3";
+  if(k===3){$("kt").textContent="🎃 TRICK OR TREAT！👻";$("kx").remove();setTimeout(()=>{m.remove();go()},1300)}else $("kt").textContent=["咚！","咚咚！"][k-1]+"……好像有動靜"};
+ $("kx").onclick=()=>m.remove()}
 function enter(n){ME=n;P=USERS[n]||newProgress(n);resetRun();setTimeout(submitScore,800);setTimeout(fetchLB,900);USERS[n]=P;save();view=P.end?(P.gp?"gate":"done"):(P.start?"puzzle":"brief");if(view==="puzzle")startTick();render()}
 function rBrief(){return`<div class="card"><h2>任務簡報</h2><p>夜色低垂，萬聖夜的辦公室成了無主之地。空氣中迴盪著詭譎的低語：『Trick or Treat...』</p><p>有群搗蛋鬼正在入侵，你已被指派為本次的資安特派員，必須在 <b>${CONFIG.TIME_BUDGET_MIN} 分鐘</b> 的倒數時限內，突破三關試煉化解這場危機。</p><p style="font-size:.85rem;color:#aaa">計時只在分頁位於前景時累計；第三關可隨時按「暫停計時」。</p><button class="btn" onclick="begin()">接受任務</button><button class="btn alt" onclick="logout()">登出</button></div>${SAVED}`}
 function begin(){P.start=Date.now();save();view="puzzle";startTick();render()}
-function logout(){resetRun();P=null;ME=null;ADMIN=false;view="login";chips=[];slots=[];nmv="";apv="";CLOUD=null;FULL=false;render();fetchLB()}
-const INTRO=["會計的帳冊被改得面目全非，零用金的數字全被竄改。你必須在暗處冷靜清點並推算四處游蕩的幽靈總額，修好第一本亂帳，才能拿到通往下一關的鑰匙。","好不容易理清帳目，轉頭卻看見下午茶的精神支柱「零食櫃」被惡靈封印了。你必須遵循「大不壓小」的古老法則，將四重魔塔（骷髏、南瓜、蝙蝠、幽靈）移往右側淨化陣，破除封鎖！","終於挺進試煉的終點，但幽靈佈下的最後幻象打亂了大家的理智。在倒數計時崩解之前，將亂序的 16 格心智碎片滑動歸位，準備給大魔王致命一擊！"];
+function logout(){resetRun();P=null;ME=null;ADMIN=false;view="login";chips=[];slots=[];nmv="";apv="";CLOUD=null;render();fetchLB()}
+const INTRO=["會計的帳冊被改得面目全非，零用金的數字全被竄改。你必須在暗處冷靜清點並推算四處游蕩的幽靈總額，修好第一本亂帳，才能拿到通往下一關的鑰匙。","好不容易理清帳目，轉頭卻看見下午茶的精神支柱「零食櫃」被惡靈封印了。你必須遵循「大不壓小」的古老法則，將四重魔塔（骷髏、南瓜、蝙蝠、幽靈）移往右側淨化陣，破除封鎖！","終於挺進試煉的終點，但幽靈佈下的最後幻象打亂了大家的理智。在倒數計時崩解之前，將亂序的 16 格心智碎片滑動歸位，準備給大魔王致命一擊！<br>通關規則：滑動方塊，讓編號 1～15 依「由左至右、由上至下」的順序排好（第一列是 1～4，第二列是 5～8，以此類推），第 16 格（右下角）留空即完成。"];
 const TITLES=["幽靈會計的記帳時刻","零食櫃的封印","管理部的理智碎片修復術"];
 function rPuzzle(){if(P.timeout)return`<div class="card"><h2 class="err">⏰ 時間到</h2><p>理智已被幽靈吞噬……請洽${CONFIG.ORG_NAME}重置後再挑戰。</p><button class="btn alt" onclick="logout()">登出</button></div>`;
  const L=P.lvl;return`<div class="top"><div>${[0,1,2].map(i=>`<span class="rune ${i<L?"ok":i==L?"on":""}">${i<L?"✓":["🧮","🏰","🧩"][i]}</span>`).join("")}</div><div class="timer" id="tm">--:--</div></div>
  <div class="card"><h2>第${["一","二","三"][L]}關：${TITLES[L]}</h2><p>${INTRO[L]}</p>${[l1,l2,l3][L]()}<div class="err">${P.msg||""}</div></div>${SAVED}`}
-function l1(){return`<p>辦公室裡藏著2D的 <b>白色、黑色、灰色</b> 幽靈（請實地清點捷而思辦公室）。</p><p class="mono" style="color:var(--spectral)">公式：${FORMS[P.fi]} = ?</p>${P.wrong>=2?`<p>💡 提示：先算括號、乘法與平方，再做加減。</p>`:""}<input id="ans" type="number" inputmode="numeric" placeholder="輸入計算結果"><button class="btn" onclick="ans1()">提交</button>`}
-// 第一關答案交給後端比對
+function l1(){return`<p>辦公室裡藏著2D的 <b>白色、黑色、灰色</b> 幽靈（請實地清點捷而思辦公室👀）。</p><p class="mono" style="color:var(--spectral)">公式：${FORMS[P.fi]} = ?</p>${P.wrong>=2?`<p>💡 提示：先算括號、乘法與平方，再做加減。</p>`:""}<input id="ans" type="number" inputmode="numeric" placeholder="輸入計算結果"><button class="btn" onclick="ans1()">提交</button>`}
 let ansBusy=false;
 async function ans1(){if(ansBusy)return;const p=P,v=$("ans").value.trim();
  if(v===""||isNaN(Number(v))){p.msg="請輸入數字答案";render();return}
- if(!CONFIG.SCORE_URL){p.msg="尚未連線到驗證伺服器（請先設定 SCORE_URL）";render();return}
  ansBusy=true;const bt=document.querySelector("#ans+button");if(bt){bt.disabled=true;bt.textContent="驗證中…"}
  let j;try{j=await jpost({action:"check1",name:p.name,fi:p.fi,ans:v})}
  catch(e){ansBusy=false;if(P!==p)return;p.msg="無法連線驗證，請檢查網路後再試一次";render();return}
@@ -226,7 +217,6 @@ function l3(){const left=CONFIG.HINT_MAX_USES-P.hints,rl=CONFIG.RESHUFFLE_MAX-(P
  if(paused)return`<div style="text-align:center;border:2px dashed var(--pumpkin);border-radius:12px;padding:28px 12px;margin:12px 0"><h3>⏸ 已暫停</h3><p>計時已停止，盤面暫時隱藏。</p><button class="btn" onclick="togglePause()">▶ 繼續遊戲</button></div>`;
  return`<div class="boardwrap"><div class="slider">${P.ord.map((v,i)=>`<button class="tile ${v===15?"blank":""}" style="background:hsl(${v*24},55%,${v%2?32:40}%)" onclick="mv(${i})">${v===15?"":["🎃","👻","🦇","💀","🕷️","🕸️","🧙","🧛","🍬","🕯️","🦉","⚰️","🧟","🌙","🔮"][v]+"<br><small>"+(v+1)+"</small>"}</button>`).join("")}</div><div class="shieldmsg">🛡 盤面暫時隱藏<small style="font-weight:400;margin-top:6px">先動動腦想想</small></div></div>
  <div style="text-align:center"><button class="btn alt" onclick="togglePause()" ${HB?"disabled":""}>⏸ 暫停計時</button><button class="btn alt" onclick="reshuffle()" ${rl<=0||HB?"disabled":""}>🔀 重新洗牌（剩 ${rl} 次）</button><button class="btn alt hintbtn" onclick="askHint()" ${left<=0||HB||needMoves()>0?"disabled":""}>💡 使用提示（剩 ${left} 次，−${CONFIG.HINT_PENALTY_SEC} 秒）${left>0&&needMoves()>0?`<br><small>再自己走 ${needMoves()} 步才能使用</small>`:""}</button></div>`}
-// 防外流（輕量版）：偵測到電腦截圖快捷鍵就把第三關盤面鎖住隱藏 10 秒（切換分頁也會隱藏）。無法偵測手機實體按鍵截圖、錄螢幕或翻拍
 const SHOT_LOCK_MS=10000;
 let shTimer=null,lockUntil=+(function(){try{return localStorage.getItem("hw_lock")}catch(e){return 0}})()||0;
 const shOK=()=>P&&view==="puzzle"&&P.lvl===2&&!paused;
@@ -235,28 +225,20 @@ function unshield(force){if(!force&&Date.now()<lockUntil)return;lockUntil=0;try{
 function stars(u){const n=(u&&u.shots)|0;return n?` <span class="gold" style="font-size:.85em;letter-spacing:1px">${n>10?"★×"+n:"★".repeat(n)}</span>`:""}
 function lockShot(){if(!shOK())return;if(Date.now()>=lockUntil){P.shots=(P.shots||0)+1;save()}lockUntil=Date.now()+SHOT_LOCK_MS;try{localStorage.setItem("hw_lock",String(lockUntil))}catch(e){}applyLock();noClip()}
 function applyLock(){const r=lockUntil-Date.now();if(r>0&&P&&view==="puzzle"&&P.lvl===2){document.body.classList.add("shield");clearTimeout(shTimer);shTimer=setTimeout(()=>unshield(true),r)}}
-// PrintScreen 會把整個畫面（含盤面）放進剪貼簿。偵測到後立刻用一個空白字元蓋掉，並在 0.01 秒後再蓋一次
 function fbClip(){try{const t=document.createElement("textarea");t.value=" ";t.style.cssText="position:fixed;left:-999px;top:0;opacity:0";document.body.appendChild(t);t.select();document.execCommand("copy");t.remove()}catch(x){}}
 const clipClear=()=>{try{navigator.clipboard.writeText(" ").catch(fbClip)}catch(x){fbClip()}};
 const noClip=()=>{clipClear();[150,600,1500].forEach(ms=>setTimeout(clipClear,ms))};
 document.addEventListener("visibilitychange",()=>{document.hidden?shield(0):unshield()});
-// 「預先隱藏」：碰到任何可能用來截圖的按鍵就立刻隱藏，放開後恢復（搶在最後一個鍵按下、系統開始截圖之前）
-//  - 修飾鍵：Ctrl / Cmd(Win) / Shift / Alt /PrtSc任何一個
-//  - 截圖相關鍵：PrintScreen、S、3、4、5、6
-// 只要按到截圖相關鍵（單按一個、或同時按，如 PrintScreen、Ctrl/Cmd+Shift+S、3/4/5/6），除了立刻隱藏，另外鎖定隱藏 SHOT_LOCK_MS 並記 ★
-// （單按修飾鍵 Ctrl/Cmd/Shift/Alt/PrtSc 只在按住期間隱藏，不鎖定、要記星）
 let comboOn=false;const touch=new Set();
 const modHeld=e=>e.ctrlKey||e.metaKey||e.shiftKey||e.altKey;
 const SHOTKEY=/^(PrintScreen|KeyS|(Digit|Numpad)[3456])$/;
 const isPrt=e=>e.key==="PrintScreen"||e.key==="Snapshot"||e.code==="PrintScreen";
 const isShotKey=e=>isPrt(e)||SHOTKEY.test(e.code);
 function refreshHide(e){if(modHeld(e)||touch.size){comboOn=true;shield(0)}else if(comboOn){comboOn=false;unshield()}}
-// 自我修復：若放開按鍵時沒收到事件（例如視窗失焦、Mac 按著 Cmd 時不送 keyup），滑鼠一動或切回視窗就檢查並恢復
 ["mousemove","pointerdown","click"].forEach(t=>document.addEventListener(t,e=>{if(comboOn&&!modHeld(e)){touch.clear();comboOn=false;unshield()}}));
 window.addEventListener("focus",()=>{touch.clear();comboOn=false;unshield()});
 document.addEventListener("keydown",e=>{if(SHOTKEY.test(e.code)||isPrt(e))touch.add(e.code||e.key);refreshHide(e);if(!e.repeat&&isShotKey(e))lockShot()});
 document.addEventListener("keyup",e=>{touch.delete(e.code||e.key);if(!modHeld(e))touch.clear();refreshHide(e);if(isShotKey(e))lockShot()});
-// ---- 使用提示前的聲明 ----
 const DECL=["我會加油","我會好好運用我的大腦","我會思考它怎麼運作","我會用AI幫我處理","我會想辦法破解😏"];
 const shielded=()=>document.body.classList.contains("shield")||Date.now()<lockUntil;
 function closeDecl(){const m=$("declm");if(m)m.remove()}
@@ -269,16 +251,12 @@ function togglePause(){if(HB)return;paused=!paused;last=Date.now();save();render
 function move(i){const b=P.ord.indexOf(15),r=b>>2,c=b&3,ir=i>>2,ic=i&3;if(Math.abs(r-ir)+Math.abs(c-ic)!==1)return false;
  P.ord[b]=P.ord[i];P.ord[i]=15;const t=P.trail;if(t.length>1&&t[t.length-2]===i)t.pop();else t.push(i);return true}
 function chk(){if(P.ord.every((v,i)=>v===i)){P.lvl=3;P.end=Date.now();P.gp=1;view="gate";save();submitScore()}}
-// 第一關：提交次數、花費秒數；第二關：步數、花費秒數（t1／t2 是通過第一／二關當下的累計秒數）
-// 第三關：步數＝自己動滑塊的次數（提示自動走的不算）、秒數含提示扣的時間；h＝使用提示次數
 const lvlStats=u=>u.t1!=null&&u.t2!=null?{s1:u.s1,d1:u.t1,s2:u.s2,d2:u.t2-u.t1,s3:u.m3|0,d3:Math.max(0,Math.round(u.el)-u.t2),h:u.hints|0}:{};
 const m_s=s=>Math.floor(s/60)+":"+p2(Math.round(s)%60);
 const statsHtml=u=>{const t=lvlStats(u);return t.s1!=null?`<p class="mono">① 第一關：${t.s1} 次提交・${mmss(t.d1)}<br>② 第二關：${t.s2} 步・${mmss(t.d2)}<br>③ 第三關：${t.s3} 步・${mmss(t.d3)}<br>💡 使用提示：${t.h} 次</p>`:""};
-// 排行榜每人下方的小字。後端回傳 null 代表「這項還沒對你公開」（顯示🔒），提示次數要等自己通關第三關才看得到
 const lbSub=r=>{if(!CONFIG.LB_SHOW_STATS||typeof r.s1!=="number"||typeof r.s2!=="number")return"";
  const num=typeof r.s3==="number"&&typeof r.d3==="number",L3=num?`${r.s3}步・${m_s(r.d3)}`:(r.s3===null?"🔒":"—"),H=typeof r.h==="number"?`${r.h}次`:(r.h===null?"🔒":"—");
  return`<br><small style="color:#aaa;font-weight:400">①${r.s1}次・${m_s(r.d1)}　②${r.s2}步・${m_s(r.d2)}　③${L3}　💡${H}</small>`};
-// 自己操作的步數：每走一格 +1，但「立刻走回上一格」不算，避免來回晃動灌步數
 function mv(i){if(HB||paused)return;const b=P.ord.indexOf(15);if(move(i)){P.m3=(P.m3|0)+1;if(i!==P.pb)P.since=(P.since|0)+1;P.pb=b;chk();save();render()}}
 function reshuffle(){if(!P||view!=="puzzle"||P.lvl!==2||HB||paused||shielded()||(P.rs|0)>=CONFIG.RESHUFFLE_MAX)return;
  if(!confirm(`要重新洗牌嗎？\n・盤面會換成全新的亂序\n・計時不會停止，已走的步數仍會累計\n・剩餘 ${CONFIG.RESHUFFLE_MAX-(P.rs|0)} 次機會，用掉就沒了`))return;
@@ -287,9 +265,8 @@ const needMoves=()=>Math.max(0,CONFIG.HINT_MIN_MOVES-(P.since|0));
 function hint(){if(P.hints>=CONFIG.HINT_MAX_USES||HB||paused||shielded()||needMoves()>0)return;P.hints++;P.since=0;P.pb=-1;P.el+=CONFIG.HINT_PENALTY_SEC;HB=true;let n=0;save();
  hintTimer=setInterval(()=>{const tr=P.trail;const stop=()=>{clearInterval(hintTimer);hintTimer=null;HB=false};
   if(n++>=CONFIG.HINT_AUTO_STEPS||tr.length<2){stop();save();render();return}
-  if(move(tr[tr.length-2]))P.m3=(P.m3|0)+1; // 提示自動移動也計入總步數
+  if(move(tr[tr.length-2]))P.m3=(P.m3|0)+1;
   chk();if(view==="gate")stop();save();render()},450)}
-// ---- 通關開門動畫 ----
 function rGate(){const E=["🎃","👻","🦇","🍬","🕯️","✨","💀","🕸️"];let ps="",st="";
  for(let i=0;i<18;i++){const dx=(Math.random()*320-160)|0,dy=-((60+Math.random()*190)|0),dl=(4.6+Math.random()*.8).toFixed(2);ps+=`<span class="gs-p" style="--dx:${dx}px;--dy:${dy}px;animation-delay:${dl}s">${E[i%E.length]}</span>`}
  for(let i=0;i<14;i++)st+=`<i style="left:${Math.random()*100|0}%;top:${Math.random()*45|0}%;animation-delay:${(Math.random()*3).toFixed(1)}s"></i>`;
@@ -304,7 +281,6 @@ function rDone(){const rk=CLOUD?CLOUD.findIndex(r=>r.name===ME)+1:0;
  return`<div class="card"><h2>🎉 任務圓滿達成</h2><p>隨著最後一塊心智碎片歸位，刺耳的警報聲戛然而止。幻象如煙霧般消散，你成功擊退了幽靈駭客與大魔王，拯救了大家的理智與物資，辦公室重新恢復了光明與平靜。任務圓滿達成，最強資安特派員！</p>
  <h3>【本次任務資安紀錄】</h3><p><b>${ME}</b>${stars(P)}</p><p class="mono">🕒 開始時間：${fmt(P.start)}<br>🏁 完成時間：${fmt(P.end)}<br>⏱️ 花費總時間：${mmss(P.el)}</p>${statsHtml(P)}${rk?`<p>目前排名：第 ${rk} 名</p>`:""}
  <p>現在請憑通關畫面，前往「${CONFIG.ORG_NAME}」領取屬於你的萬聖節戰利品與獎勵吧！</p><button class="btn alt" onclick="view='gate';render()">🎬 重播開門動畫</button><button class="btn alt" onclick="logout()">登出</button><button class="btn alt" onclick="copyCard(this)">🖼️ 領取通關畫面</button></div>`}
-// ---- 領取通關畫面：把結算卡片畫成圖片放進剪貼簿（文字直接讀目前畫面上的卡片，改結算頁文字時這裡不用另外改）----
 async function cardPng(){await document.fonts.ready;
  const card=document.querySelector("#app .card"),W=720,m=14,pad=26,inner=W-2*m-2*pad,F="'Noto Sans TC','Microsoft JhengHei',sans-serif",M="'IBM Plex Mono','Noto Sans TC',monospace";
  const c=document.createElement("canvas"),x=c.getContext("2d"),blocks=[];
@@ -327,34 +303,28 @@ async function cardPng(){await document.fonts.ready;
  lay.forEach(b=>{b.lines.forEach(L=>{let px=m+pad;L.forEach(s=>{x.font=font(s);x.fillStyle=s.c;x.fillText(s.t,px,y+b.lh*.72);px+=x.measureText(s.t).width});y+=b.lh});y+=b.gap});
  return new Promise(r=>c.toBlob(r,"image/png"))}
 function saveBlob(b,n){const a=document.createElement("a");a.href=URL.createObjectURL(b);a.download=n;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),4000)}
-// 一按就把通關畫面複製成圖片，可直接貼到聊天視窗；瀏覽器不支援複製圖片時，改成下載圖片檔
 async function copyCard(b){const t0=b.textContent;b.disabled=true;
  try{if(!navigator.clipboard||!window.ClipboardItem)throw 0;await navigator.clipboard.write([new ClipboardItem({"image/png":cardPng()})]);b.textContent="✅ 已複製，直接貼上即可"}
  catch(e){try{saveBlob(await cardPng(),`通關畫面_${ME}.png`);b.textContent="⬇️ 已下載圖片"}catch(x){b.textContent="❌ 沒成功，請改用截圖"}}
  setTimeout(()=>{b.textContent=t0;b.disabled=false},2800)}
-// ---- leaderboard ----
 const esc=s=>String(s==null?"":s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"})[c]);
-// ---- 雲端排行榜（Google Apps Script）----
-let CLOUD=null,cloudErr="",cloudBusy=false,FULL=false;
-// 還沒通關的人拿到「公開版」（提示次數是 null）；通關後送出成績會領到一把通行證(tok)，之後改拿「完整版」
-async function fetchLB(){if(!CONFIG.SCORE_URL||cloudBusy)return;cloudBusy=true;const p=P;let j=null,full=false;
+let CLOUD=null,cloudErr="",cloudBusy=false;
+async function fetchLB(){if(cloudBusy)return;cloudBusy=true;const p=P;let j=null,full=false;
  try{
   if(p&&p.end&&p.tok){try{j=await jpost({action:"board",id:p.name+"|"+p.start,tok:p.tok});full=Array.isArray(j)}catch(e){}}
   if(!full){const r=await fetch(CONFIG.SCORE_URL+(CONFIG.SCORE_URL.includes("?")?"&":"?")+"t="+Date.now());j=await r.json()}
-  if(full&&P!==p){cloudBusy=false;CLOUD=null;FULL=false;rLB();return fetchLB()}   // 等待期間已登出或換人：丟掉完整版
-  CLOUD=Array.isArray(j)?j:[];FULL=full;cloudErr=""}
+  if(full&&P!==p){cloudBusy=false;CLOUD=null;rLB();return fetchLB()}
+  CLOUD=Array.isArray(j)?j:[];cloudErr=""}
  catch(e){cloudErr="無法連線到雲端排行榜"}
  cloudBusy=false;rLB();if(view==="done")render()}
 let sending=false;
-function submitScore(){if(!CONFIG.SCORE_URL||!P||!P.end||P.tok||ADMIN||sending)return;const p=P;sending=true;
+function submitScore(){if(!P||!P.end||P.tok||ADMIN||sending)return;const p=P;sending=true;
  jpost(Object.assign({id:p.name+"|"+p.start,name:p.name,sec:Math.round(p.el),shots:p.shots|0,start:p.start,end:p.end},lvlStats(p)))
-  .then(j=>{sending=false;if(j&&j.ok&&j.tok){p.tok=j.tok;p.sent=1;USERS[p.name]=p;sv("hw_users",USERS);fetchLB()}}).catch(()=>{sending=false})}
-if(CONFIG.SCORE_URL){fetchLB();setInterval(()=>{if(!document.hidden)fetchLB()},30000)}
+  .then(j=>{sending=false;if(j&&j.ok&&j.tok){p.tok=j.tok;USERS[p.name]=p;sv("hw_users",USERS);fetchLB()}}).catch(()=>{sending=false})}
+fetchLB();setInterval(()=>{if(!document.hidden)fetchLB()},30000);
 function rLB(){const L=(CLOUD||[]).slice(0,10),
- empty=CLOUD===null?(cloudErr?`<p class="err">${cloudErr}</p>`:"<p>載入中…</p>"):"<p>尚無通關紀錄</p>",
- lockNote=CONFIG.LB_SHOW_STATS&&L.length&&!FULL?'<p style="font-size:.8rem;color:#aaa;margin:8px 0 0"></p>':"";
- $("lb").innerHTML=`<div class="card"><h3>🏆 排行榜（全公司） <button class="btn sm alt" onclick="fetchLB()">🔄 更新</button></h3>${L.length?`<table>${L.map((r,i)=>`<tr class="${["gold","silver","bronze"][i]||""}"><td>${["👑冠軍","🥈亞軍","🥉季軍"][i]||i+1}</td><td>${esc(r.name)}${lbSub(r)}</td><td class="mono">${mmss(r.sec)}</td></tr>`).join("")}</table>`:empty}${lockNote}${cloudErr&&CLOUD?`<p class="err" style="font-size:.8rem">${cloudErr}</p>`:""}</div>`}
-// ---- admin ----
+ empty=CLOUD===null?(cloudErr?`<p class="err">${cloudErr}</p>`:"<p>載入中…</p>"):"<p>尚無通關紀錄</p>";
+ $("lb").innerHTML=`<div class="card"><h3>🏆 排行榜（全公司） <button class="btn sm alt" onclick="fetchLB()">🔄 更新</button></h3>${L.length?`<table>${L.map((r,i)=>`<tr class="${["gold","silver","bronze"][i]||""}"><td>${["👑冠軍","🥈亞軍","🥉季軍"][i]||i+1}</td><td>${esc(r.name)}${lbSub(r)}</td><td class="mono">${mmss(r.sec)}</td></tr>`).join("")}</table>`:empty}${cloudErr&&CLOUD?`<p class="err" style="font-size:.8rem">${cloudErr}</p>`:""}</div>`}
 function rAdm(){const a=$("adm");if(!ADMIN){a.innerHTML="";return}
  const names=Object.keys(USERS);
  a.innerHTML=`<div class="card" style="border-color:var(--venom)"><h3>🛠 測試後台</h3>
