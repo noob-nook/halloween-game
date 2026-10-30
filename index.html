@@ -115,7 +115,7 @@ const jpost=b=>fetch(CONFIG.SCORE_URL,{method:"POST",headers:{"Content-Type":"te
 const p2=n=>String(n).padStart(2,"0"),fmt=d=>{d=new Date(d);return`${d.getFullYear()}/${p2(d.getMonth()+1)}/${p2(d.getDate())} ${p2(d.getHours())}:${p2(d.getMinutes())}:${p2(d.getSeconds())}`},mmss=s=>`${p2(Math.floor(s/60))} 分 ${p2(Math.floor(s%60))} 秒`;
 const shuf=a=>{a=a.slice();for(let i=a.length-1;i>0;i--){const j=Math.random()*(i+1)|0;[a[i],a[j]]=[a[j],a[i]]}return a};
 for(let i=0;i<14;i++){const e=document.createElement("i");e.className="ember";e.style.left=Math.random()*100+"%";e.style.animationDelay=Math.random()*7+"s";e.style.animationDuration=5+Math.random()*5+"s";$("embers").appendChild(e)}
-const FORMS=["白 × 黑 − 灰","（白 + 黑 + 灰）× 2","黑的平方 − （白 × 灰）","（白 + 黑）× 灰 − 白"];
+const FORMS=["白 × 黑 − 灰","（白 + 黑 + 灰）× 白","白的平方 − （黑 × 灰）","（白 × 黑 × 灰的平方"];
 function scr(){let ord=[...Array(16).keys()],pos=15,trail=[15],prev=-1;
  for(let i=0;i<CONFIG.SHUFFLE_STEPS;i++){const r=pos>>2,c=pos&3,n=[];if(r>0)n.push(pos-4);if(r<3)n.push(pos+4);if(c>0)n.push(pos-1);if(c<3)n.push(pos+1);
   const ch=n.filter(x=>x!==prev),q=ch[Math.random()*ch.length|0];ord[pos]=ord[q];ord[q]=15;prev=pos;pos=q;
