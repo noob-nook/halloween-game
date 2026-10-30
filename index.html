@@ -105,7 +105,8 @@ const CONFIG={
  PASS_WORDS:["or","Treat","Trick"],
  SHUFFLE_STEPS:30,
  HINT_MAX_USES:5,HINT_PENALTY_SEC:20,HINT_AUTO_STEPS:4,HINT_MIN_MOVES:5,
- RESHUFFLE_MAX:5};
+ RESHUFFLE_MAX:5,
+ L1_WALK_AFTER:3};
 const ld=(k,d)=>{try{return JSON.parse(localStorage.getItem(k))||d}catch(e){return d}};
 const sv=(k,v)=>{try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}};
 let USERS=ld("hw_users",{}),ME=null,P=null,ADMIN=false,view="login",tick=null;
@@ -131,7 +132,7 @@ function startTick(){clearInterval(tick);last=Date.now();let sk=-1;tick=setInter
 function resync(){last=Date.now();if(!P||document.hidden)return;if(view==="puzzle"){startTick();if(HB&&!hintTimer){HB=false;render()}else paintTimer()}}
 document.addEventListener("visibilitychange",()=>{if(document.hidden){if(P)save()}else resync()});
 window.addEventListener("pageshow",resync);window.addEventListener("focus",resync);window.addEventListener("pagehide",()=>{if(P)save()});
-function paintTimer(){const t=$("tm");if(!t)return;const left=Math.max(0,CONFIG.TIME_BUDGET_MIN*60-P.el);t.textContent=(paused?"⏸ ":"")+`${p2(Math.floor(left/60))}:${p2(Math.floor(left%60))}`;t.className="timer"+(paused?" pause":left<300?" low":"");if(left<=0&&!P.timeout){P.timeout=1;save();render()}}
+function paintTimer(){const t=$("tm");if(!t)return;const left=Math.max(0,CONFIG.TIME_BUDGET_MIN*60-P.el);t.textContent=(paused?"⏸ ":"")+`${p2(Math.floor(left/60))}:${p2(Math.floor(left%60))}`;t.className="timer"+(paused?" pause":left<300?" low":"");if(left<=0&&!P.timeout){P.timeout=1;closeGate();save();render()}}
 const SAVED='<div class="saved">💾 進度已自動儲存，重新整理也不會消失</div>';
 let slots=[],chips=[],sel=-1;
 let shown="";
@@ -189,13 +190,15 @@ function knock(go){const m=document.createElement("div");m.className="decl";let 
 function enter(n){ME=n;P=USERS[n]||newProgress(n);resetRun();setTimeout(submitScore,800);setTimeout(fetchLB,900);USERS[n]=P;save();view=P.end?(P.gp?"gate":"done"):(P.start?"puzzle":"brief");if(view==="puzzle")startTick();render()}
 function rBrief(){return`<div class="card"><h2>任務簡報</h2><p>夜色低垂，萬聖夜的辦公室成了無主之地。空氣中迴盪著詭譎的低語：『Trick or Treat...』</p><p>有群搗蛋鬼正在入侵，你已被指派為本次的資安特派員，必須在 <b>${CONFIG.TIME_BUDGET_MIN} 分鐘</b> 的倒數時限內，突破三關試煉化解這場危機。</p><p style="font-size:.85rem;color:#aaa">計時只在分頁位於前景時累計；第三關可隨時按「暫停計時」。</p><button class="btn" onclick="begin()">接受任務</button><button class="btn alt" onclick="logout()">登出</button></div>${SAVED}`}
 function begin(){P.start=Date.now();save();view="puzzle";startTick();render()}
-function logout(){resetRun();P=null;ME=null;ADMIN=false;view="login";chips=[];slots=[];nmv="";apv="";CLOUD=null;render();fetchLB()}
+function logout(){closeGate();resetRun();P=null;ME=null;ADMIN=false;view="login";chips=[];slots=[];nmv="";apv="";CLOUD=null;render();fetchLB()}
 const INTRO=["會計的帳冊被改得面目全非，零用金的數字全被竄改。你必須在暗處冷靜清點並推算四處游蕩的幽靈總額，修好第一本亂帳，才能拿到通往下一關的鑰匙。","好不容易理清帳目，轉頭卻看見下午茶的精神支柱「零食櫃」被惡靈封印了。你必須遵循「大不壓小」的古老法則，將四重魔塔（骷髏、南瓜、蝙蝠、幽靈）移往右側淨化陣，破除封鎖！","終於挺進試煉的終點，但幽靈佈下的最後幻象打亂了大家的理智。在倒數計時崩解之前，將亂序的 16 格心智碎片滑動歸位，準備給大魔王致命一擊！<br>通關規則：滑動方塊，讓編號 1～15 依「由左至右、由上至下」的順序排好（第一列是 1～4，第二列是 5～8，以此類推），第 16 格（右下角）留空即完成。"];
 const TITLES=["幽靈會計的記帳時刻","零食櫃的封印","管理部的理智碎片修復術"];
 function rPuzzle(){if(P.timeout)return`<div class="card"><h2 class="err">⏰ 時間到</h2><p>理智已被幽靈吞噬……請洽${CONFIG.ORG_NAME}重置後再挑戰。</p><button class="btn alt" onclick="logout()">登出</button></div>`;
  const L=P.lvl;return`<div class="top"><div>${[0,1,2].map(i=>`<span class="rune ${i<L?"ok":i==L?"on":""}">${i<L?"✓":["🧮","🏰","🧩"][i]}</span>`).join("")}</div><div class="timer" id="tm">--:--</div></div>
  <div class="card"><h2>第${["一","二","三"][L]}關：${TITLES[L]}</h2><p>${INTRO[L]}</p>${[l1,l2,l3][L]()}<div class="err">${P.msg||""}</div></div>${SAVED}`}
-function l1(){return`<p>辦公室裡藏著2D的 <b>白色、黑色、灰色</b> 幽靈（請實地清點捷而思辦公室👀）。</p><p class="mono" style="color:var(--spectral)">公式：${FORMS[P.fi]} = ?</p>${P.wrong>=2?`<p>💡 提示：先算括號、乘法與平方，再做加減。</p>`:""}<input id="ans" type="number" inputmode="numeric" placeholder="輸入計算結果"><button class="btn" onclick="ans1()">提交</button>`}
+function l1(){const hd=`<p>辦公室裡藏著2D的 <b>白色、黑色、灰色</b> 幽靈（請實地清點捷而思辦公室👀）。</p><p class="mono" style="color:var(--spectral)">公式：${FORMS[P.fi]} = ?</p>`;
+ if(P.gate)return hd+`<div style="text-align:center;border:2px dashed var(--pumpkin);border-radius:12px;padding:20px 12px;margin:12px 0"><h3>🚶 請先起來走走</h3><p>答錯太多次了！請起來走走，把辦公室裡躲起來的幽靈找出來，再回來確認。</p><button class="btn" onclick="gateAsk()">我已經起來了</button></div>`;
+ return hd+`${P.wrong>=2?`<p>💡 提示：先算括號、乘法與平方，再做加減。</p>`:""}<input id="ans" type="number" inputmode="numeric" placeholder="輸入計算結果"><button class="btn" onclick="ans1()">提交</button>`}
 let ansBusy=false;
 async function ans1(){if(ansBusy)return;const p=P,v=$("ans").value.trim();
  if(v===""||isNaN(Number(v))){p.msg="請輸入數字答案";render();return}
@@ -204,9 +207,35 @@ async function ans1(){if(ansBusy)return;const p=P,v=$("ans").value.trim();
  catch(e){ansBusy=false;if(P!==p)return;p.msg="無法連線驗證，請檢查網路後再試一次";render();return}
  ansBusy=false;if(P!==p)return;
  if(j&&j.ok){p.s1=(p.wrong|0)+1;p.t1=Math.round(p.el);p.lvl=1;p.msg="";save();render()}
+ else if(j&&j.gate){if(!p.gate)p.wrong++;p.gate=1;p.msg="";save();render();gateModal()}
  else if(j&&j.locked){p.msg="嘗試次數過多，請 10 分鐘後再試";render()}
  else if(j&&j.error){p.msg="驗證伺服器尚未設定完成，請通知主辦單位";render()}
- else{p.wrong++;p.msg="帳目不符，再算一次！";save();render()}}
+ else{p.wrong++;p.msg="帳目不符，再算一次！";save();render();if(p.wrong>CONFIG.L1_WALK_AFTER)walk()}}
+function walk(){if($("walkm"))return;const m=document.createElement("div");m.id="walkm";m.className="decl";
+ m.innerHTML=`<div><h3>🚶 先起來走走吧</h3><div class="q">請起來走走，把辦公室裡躲起來的幽靈找出來！</div><div><button class="btn" id="walkyes">我已經起來了</button><button class="btn alt" id="walkok">好</button></div></div>`;
+ document.body.appendChild(m);
+ $("walkok").onclick=()=>m.remove();
+ $("walkyes").onclick=()=>{m.firstChild.innerHTML=`<h3>🐺 提示</h3><div class="q">請仔細看，誰是披著羊皮的狼</div><div><button class="btn" id="walkdone">我知道了</button></div>`;$("walkdone").onclick=()=>m.remove()}}
+/* 第一關防暴力破解：答錯太多次（由後端判定）→ 必須先起來走走、回答白色幽靈數量，才能繼續作答 */
+function closeGate(){const m=$("gatem");if(m)m.remove()}
+function gateModal(){if(!P||!P.gate||$("gatem"))return;const m=document.createElement("div");m.id="gatem";m.className="decl";
+ m.innerHTML=`<div><h3>🚶 先休息一下！</h3><div class="q">答錯太多次了……<br>請起來走走，把辦公室躲起來的幽靈找出來！</div><div><button class="btn alt" onclick="closeGate()">好</button><button class="btn" onclick="gateAsk()">我已經起來了</button></div></div>`;
+ document.body.appendChild(m)}
+function gateAsk(){if(!P||view!=="puzzle"||P.lvl!==0||!P.gate)return;let m=$("gatem");if(!m){m=document.createElement("div");m.id="gatem";m.className="decl";document.body.appendChild(m)}
+ m.innerHTML=`<div><h3>👻 幽靈清點確認</h3><div class="q">白色幽靈有幾隻？</div><input id="gin" type="number" inputmode="numeric" placeholder="輸入白色幽靈數量" onkeydown="if(event.key==='Enter')gateSubmit()"><div id="gerr" class="err" style="min-height:1.7em"></div><button class="btn" id="gok" onclick="gateSubmit()">確認</button><button class="btn alt" onclick="closeGate()">返回</button></div>`;
+ setTimeout(()=>{const i=$("gin");if(i)i.focus()},50)}
+let gateBusy=false;
+async function gateSubmit(){if(gateBusy||!P)return;const p=P,v=$("gin").value.trim(),e=$("gerr"),bt=$("gok");
+ if(v===""||isNaN(Number(v))){e.textContent="請輸入數字";return}
+ gateBusy=true;bt.disabled=true;e.textContent="驗證中…";
+ let j;try{j=await jpost({action:"gate1",name:p.name,ans:v})}
+ catch(x){gateBusy=false;bt.disabled=false;e.textContent="無法連線驗證，請稍後再試";return}
+ gateBusy=false;bt.disabled=false;if(P!==p)return;
+ if(j&&j.ok){closeGate();p.gate=0;p.msg="";
+  if(!j.match&&!p.gh){p.gh=1;p.msg="❌ 數量不對。💡 提示：請仔細看誰是披著羊皮的狼"}   // 提示只出現一次
+  save();render()}
+ else if(j&&j.error)e.textContent="驗證伺服器尚未設定完成，請通知主辦單位";
+ else e.textContent="驗證失敗，請稍後再試"}
 const DK={1:"👻",2:"🦇",3:"🎃",4:"💀"};
 function l2(){return`<p>步數：<b class="mono">${P.hm}</b>（最少 15 步）</p><div class="pegs">${P.pegs.map((p,i)=>`<div class="peg ${sel===i?"sel":""} ${i==P.pegs.length-1?"goal":""}" onclick="hp(${i})">${p.map(d=>`<div class="disk" style="width:${30+d*17}%">${DK[d]}</div>`).join("")}</div>`).join("")}</div><button class="btn alt" onclick="undo()" ${P.hundo.length?"":"disabled"}>↶ 上一步</button><button class="btn red sm" onclick="resetH()">重來</button>`}
 function hp(i){const p=P.pegs;if(sel<0){if(p[i].length)sel=i}else{if(sel!==i){const d=p[sel][p[sel].length-1],t=p[i][p[i].length-1];if(!t||d<t){p[i].push(p[sel].pop());P.hundo.push([sel,i]);P.hm++;P.msg=""}else P.msg="大不壓小！"}sel=-1}
